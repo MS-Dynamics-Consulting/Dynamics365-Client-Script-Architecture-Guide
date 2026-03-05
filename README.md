@@ -48,8 +48,7 @@ src/
 │   ├── types/                     # TypeScript definitions
 │   │   └── xrm.d.ts               # Window.MSDC global extension
 │   └── utils/                     # Common utility functions
-│       ├── get-xrm-context.ts     # Safe Xrm accessor (handles iframes)
-│       └── xrm.util.ts            # getFormContext, GetEnvironmentVariableValue
+│       └── get-xrm-context.ts     # Safe Xrm accessor (handles iframes)
 │
 ├── <entity-name>/                 # Per-entity module (e.g., case/)
 │   ├── entities/                  # Entity-specific classes & constants
@@ -131,7 +130,7 @@ Examples: `CaseMainSalesForm`, `CaseQuickCreateForm`, `EmailMainForm`, `ContactM
 | Page           | `<feature>.page.ts`                             |
 | Dialog         | `<action>.dialog.ts`                            |
 | Business logic | `validation.ts`, `workflow.ts`                  |
-| Entities       | `case.entity.ts`, `case.repository.ts`, `case.constants.ts` |
+| Entities       | `case.entity.ts`, `case.repository.ts` |
 
 ---
 
@@ -210,17 +209,17 @@ export const CaseMainSalesForm = {
 async function loadSalesMetrics(formContext: Xrm.FormContext): Promise<void> {
     const repository = new CaseRepository();
     const caseData = await repository.retrieve(formContext.data.entity.getId(), [
-        CaseConstants.Fields.SalesRegion,
-        CaseConstants.Fields.Commission,
-        CaseConstants.Fields.Revenue
+        CaseEntity.Fields.Subject,
+        CaseEntity.Fields.Priority,
+        CaseEntity.Fields.Owner
     ]);
     if (caseData) displaySalesMetrics(formContext, caseData);
 }
 
 function setupSalesFieldVisibility(formContext: Xrm.FormContext): void {
-    formContext.getControl<Xrm.Controls.StandardControl>(CaseConstants.Fields.SalesRegion)?.setVisible(true);
-    formContext.getControl<Xrm.Controls.StandardControl>(CaseConstants.Fields.Commission)?.setVisible(true);
-    formContext.getControl<Xrm.Controls.StandardControl>(CaseConstants.Fields.ServiceType)?.setVisible(false);
+    formContext.getControl<Xrm.Controls.StandardControl>(CaseEntity.Fields.Subject)?.setVisible(true);
+    formContext.getControl<Xrm.Controls.StandardControl>(CaseEntity.Fields.Priority)?.setVisible(true);
+    formContext.getControl<Xrm.Controls.StandardControl>(CaseEntity.Fields.CaseType)?.setVisible(false);
 }
 
 // ============================================================================
@@ -243,9 +242,8 @@ Each entity module follows a consistent template:
 ```
 case/
 ├── entities/
-│   ├── case.entity.ts          # Entity class with static logicalName
-│   ├── case.repository.ts      # CaseRepository extends Repository<CaseEntity>
-│   └── case.constants.ts       # Fields, state/status codes, GUIDs, enums
+│   ├── case.entity.ts          # Entity class with static LogicalName, Fields, StatusCode, FormIds
+│   └── case.repository.ts      # CaseRepository extends Repository<CaseEntity>
 ├── forms/
 │   ├── main-sales.form.ts
 │   ├── main-service.form.ts
@@ -269,8 +267,7 @@ case/
 // case/index.ts
 export { CaseEntity } from "./entities/case.entity";
 export { CaseRepository } from "./entities/case.repository";
-export { CaseConstants } from "./entities/case.constants";
-export type { CaseStatusCode, CaseStateCode, CaseFields } from "./entities/case.constants";
+export type { CaseStatusCode, CaseStateCode, CaseFields } from "./entities/case.entity";
 
 export { CaseMainSalesForm }   from "./forms/main-sales.form";
 export { CaseMainServiceForm } from "./forms/main-service.form";
@@ -282,52 +279,53 @@ export { CaseValidation }  from "./business/validation";
 export { CaseWorkflow }    from "./business/workflow";
 ```
 
-### Constants file structure
+### Entity static properties
+
+All entity metadata lives as `static` properties directly on the entity class — no separate constants file.
 
 ```ts
-// case/entities/case.constants.ts
-export const CaseConstants = {
-    LogicalName: "incident",
-    EntitySetName: "incidents",
+// case/entities/case.entity.ts
+export class CaseEntity extends Entity {
+    static LogicalName = "incident";
 
-    Fields: {
-        CaseId: "incidentid",
-        StateCode: "statecode",
+    static Fields = {
+        CaseId:     "incidentid",
+        Title:      "title",
+        CaseNumber: "ticketnumber",
+        StateCode:  "statecode",
         StatusCode: "statuscode",
-        Contact: "customerid",
-        Service: "msdc_service",
-        ServiceType: "msdc_servicetype",
-        SupportOption: "msdc_supportoption",
-        SalesRegion: "msdc_salesregion",
-        Commission: "msdc_commission",
-        Revenue: "msdc_revenue",
-        SalesManager: "msdc_salesmanager",
-        EnquirerPostcode: "msdc_enquirerpostcode"
-    } as const,
+        Customer:   "customerid",
+        Subject:    "subjectid",
+        CaseType:   "casetypecode",
+        Origin:     "caseorigincode",
+        Priority:   "prioritycode",
+        Owner:      "ownerid",
+        Description: "description"
+    } as const;
 
-    StateCode: {
+    static StateCode = {
         Active: 0,
         Inactive: 1
-    } as const,
+    } as const;
 
-    StatusCode: {
+    static StatusCode = {
         Active: 1,
         Draft: 100000000,
         InProgress: 100000001,
+        PendingReview: 100000002,
         Resolved: 2,
-        Cancelled: 100000002
-    } as const,
+        Cancelled: 100000003
+    } as const;
 
-    FormIds: {
-        MainSales:   "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        MainService: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-        QuickCreate: "cccccccc-cccc-cccc-cccc-cccccccccccc"
-    } as const
-} as const;
+    static FormIds = {
+        Main:        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        QuickCreate: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+    } as const;
+}
 
-export type CaseStatusCode = typeof CaseConstants.StatusCode[keyof typeof CaseConstants.StatusCode];
-export type CaseStateCode  = typeof CaseConstants.StateCode[keyof typeof CaseConstants.StateCode];
-export type CaseFields     = typeof CaseConstants.Fields[keyof typeof CaseConstants.Fields];
+export type CaseStatusCode = typeof CaseEntity.StatusCode[keyof typeof CaseEntity.StatusCode];
+export type CaseStateCode  = typeof CaseEntity.StateCode[keyof typeof CaseEntity.StateCode];
+export type CaseFields     = typeof CaseEntity.Fields[keyof typeof CaseEntity.Fields];
 ```
 
 ---
@@ -341,8 +339,7 @@ All data access extends the shared `Repository<T>` base class, which wraps `Xrm.
 ```ts
 // src/shared/entities/base/entity.ts
 export abstract class Entity {
-    id?: string;
-    static logicalName: string;
+    readonly id?: string;
 }
 ```
 
@@ -359,14 +356,14 @@ export interface IRepository<T extends Entity> {
     delete(id: string): Xrm.Async.PromiseLike<string>;
 }
 
-type EntityConstructor<T> = { new(...args: any[]): T; logicalName: string; };
+type EntityConstructor<T> = { new(...args: any[]): T; LogicalName: string; };
 
 export abstract class Repository<T extends Entity> implements IRepository<T> {
     private readonly entityLogicalName: string;
     private readonly xrm: typeof Xrm;
 
     constructor(entityType: EntityConstructor<T>) {
-        this.entityLogicalName = entityType.logicalName;
+        this.entityLogicalName = entityType.LogicalName;
         this.xrm = getXrmContext();
     }
     // retrieve, retrieveMultiple, create, update, delete...
@@ -380,7 +377,7 @@ The entity class declares `static logicalName` — this is how the repository di
 ```ts
 // case/entities/case.entity.ts
 export class CaseEntity extends Entity {
-    static logicalName = "incident";
+    static LogicalName = "incident";
     // typed properties...
 }
 ```
@@ -417,22 +414,20 @@ export function getXrmContext(): typeof Xrm {
 ```ts
 // case/business/validation.ts
 export const CaseValidation = {
-    validateService: (formContext: Xrm.FormContext): boolean => {
-        const service = formContext.getAttribute(CaseConstants.Fields.Service)?.getValue();
-        if (!service || (service as any[]).length === 0) {
-            Xrm.Navigation.openAlertDialog({ text: "Please select a service before saving." });
-            formContext.getControl<Xrm.Controls.StandardControl>(CaseConstants.Fields.Service)?.setFocus();
+    validateSubject: (formContext: Xrm.FormContext): boolean => {
+        const subject = formContext.getAttribute(CaseEntity.Fields.Subject)?.getValue();
+        if (!subject || (subject as any[]).length === 0) {
+            Xrm.Navigation.openAlertDialog({ text: "Please select a subject before saving." });
+            formContext.getControl<Xrm.Controls.StandardControl>(CaseEntity.Fields.Subject)?.setFocus();
             return false;
         }
         return true;
     },
-    validatePostcode: (formContext: Xrm.FormContext): boolean => {
-        const postcode = formContext
-            .getAttribute<Xrm.Attributes.StringAttribute>(CaseConstants.Fields.EnquirerPostcode)
-            ?.getValue();
-        if (!postcode) return true;
-        if (!/^[A-Z]{1,2}\d{1,2}[A-Z]?\s?\d[A-Z]{2}$/i.test(postcode)) {
-            Xrm.Navigation.openAlertDialog({ text: "Invalid postcode format." });
+    validateCustomer: (formContext: Xrm.FormContext): boolean => {
+        const customer = formContext.getAttribute(CaseEntity.Fields.Customer)?.getValue();
+        if (!customer || (customer as any[]).length === 0) {
+            Xrm.Navigation.openAlertDialog({ text: "Please select a customer before saving." });
+            formContext.getControl<Xrm.Controls.StandardControl>(CaseEntity.Fields.Customer)?.setFocus();
             return false;
         }
         return true;
@@ -461,12 +456,12 @@ await loadSalesMetrics(formContext).catch(e => alert(e.message));  // alert() in
 ```ts
 // ✅ DO
 const formContext: Xrm.FormContext = executionContext.getFormContext();
-const attr = formContext.getAttribute<Xrm.Attributes.LookupAttribute>(CaseConstants.Fields.Service);
-formContext.getControl<Xrm.Controls.StandardControl>(CaseConstants.Fields.Service)?.setVisible(true);
+const attr = formContext.getAttribute<Xrm.Attributes.LookupAttribute>(CaseEntity.Fields.Subject);
+formContext.getControl<Xrm.Controls.StandardControl>(CaseEntity.Fields.Subject)?.setVisible(true);
 
 // ❌ DON'T
 const formContext: any = executionContext.getFormContext();
-const attr = formContext.getAttribute("msdc_service");
+const attr = formContext.getAttribute("subjectid");
 ```
 
 ---
@@ -512,7 +507,7 @@ Each webpack entry produces one library file:
 - **Extract shared logic** to `_shared.form.ts`; never register it directly in Dynamics.
 
 ### Code organisation
-- **Favor constants over magic strings.** Consolidate all field names, GUIDs, and option set values in `case.constants.ts`.
+- **Favor constants over magic strings.** All field names, GUIDs, and option set values live as `static` properties on the entity class (`CaseEntity.Fields`, `CaseEntity.StatusCode`, etc.) — no separate constants file needed.
 - **Use `as const`** on all constants objects for full type narrowing.
 - **Keep side-effects minimal.** Use repositories for all data access; keep form handlers thin.
 
