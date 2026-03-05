@@ -48,7 +48,7 @@ src/
 │   ├── types/                     # TypeScript definitions
 │   │   └── xrm.d.ts               # Window.MSDC global extension
 │   └── utils/                     # Common utility functions
-│       └── get-xrm-context.ts     # Safe Xrm accessor (handles iframes)
+│       └── xrm-context.util.ts    # Safe Xrm accessor (handles iframes)
 │
 ├── <entity-name>/                 # Per-entity module (e.g., case/)
 │   ├── entities/                  # Entity-specific classes & constants
@@ -396,7 +396,7 @@ export class CaseRepository extends Repository<CaseEntity> {
 Resolves the `Xrm` global safely in both top-level and iframe web resource contexts:
 
 ```ts
-// src/shared/utils/get-xrm-context.ts
+// src/shared/utils/xrm-context.util.ts
 export function getXrmContext(): typeof Xrm {
     if (typeof Xrm !== "undefined") return Xrm;
     const parentXrm = (window?.parent as unknown as Record<string, unknown>)?.["Xrm"];

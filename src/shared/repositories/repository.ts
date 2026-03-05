@@ -1,5 +1,5 @@
 import { Entity } from "../entities/base/entity";
-import { getXrmContext } from "../utils/get-xrm-context";
+import { getXrmContext } from "../utils/xrm-context.util";
 
 export interface IRepository<T extends Entity> {
     retrieve(id: string, select?: string[], expand?: string[]): Xrm.Async.PromiseLike<T>;
