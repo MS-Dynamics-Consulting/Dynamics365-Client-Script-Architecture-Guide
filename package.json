@@ -1,0 +1,32 @@
+{
+  "name": "dynamics365-client-script-architecture-guide",
+  "version": "1.0.0",
+  "description": "Reference implementation for Dynamics 365 client scripting architecture",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "webpack --mode production",
+    "build:dev": "webpack --mode development",
+    "clean": "rm -rf dist",
+    "lint": "eslint src --ext .ts",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "dynamics365",
+    "client-scripts",
+    "typescript",
+    "webpack"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/xrm": "^9.0.88",
+    "eslint": "^8.49.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-import": "^2.29.4",
+    "rimraf": "^5.0.0",
+    "ts-loader": "^9.4.2",
+    "typescript": "^5.1.6",
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.1.4"
+  }
+}
