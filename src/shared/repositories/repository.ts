@@ -11,7 +11,7 @@ export interface IRepository<T extends Entity> {
 
 type EntityConstructor<T extends Entity> = {
     new (...args: any[]): T;
-    logicalName: string;
+    LogicalName: string;
 };
 
 /**
@@ -30,7 +30,7 @@ export abstract class Repository<T extends Entity> implements IRepository<T> {
     private readonly xrm: typeof Xrm;
 
     constructor(entityType: EntityConstructor<T>) {
-        this.entityLogicalName = entityType.logicalName;
+        this.entityLogicalName = entityType.LogicalName;
         this.xrm = getXrmContext();
     }
 

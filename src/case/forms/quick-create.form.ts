@@ -1,4 +1,4 @@
-import { CaseConstants } from "../entities/case.constants";
+import { CaseEntity } from "../entities/case.entity";
 import { SharedFormLogic } from "./_shared.form";
 
 /**
@@ -43,11 +43,11 @@ export const CaseQuickCreateForm = {
 
 function applyQuickCreateFieldRules(formContext: Xrm.FormContext): void {
     formContext
-        .getAttribute(CaseConstants.Fields.Service)
+        .getAttribute(CaseEntity.Fields.Subject)
         ?.setRequiredLevel("required");
 
     formContext
-        .getAttribute(CaseConstants.Fields.Contact)
+        .getAttribute(CaseEntity.Fields.Customer)
         ?.setRequiredLevel("required");
 }
 

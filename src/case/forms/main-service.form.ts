@@ -1,6 +1,5 @@
-import { CaseConstants } from "../entities/case.constants";
+import { CaseEntity } from "../entities/case.entity";
 import { SharedFormLogic } from "./_shared.form";
-import { GetEnvironmentVariableValue } from "../../shared/utils/xrm.util";
 
 /**
  * Case Main Form - Service View
@@ -25,8 +24,6 @@ export const CaseMainServiceForm = {
         const formContext = executionContext.getFormContext();
 
         await SharedFormLogic.initializeForm(formContext);
-        await toggleContactStatusApp(formContext);
-        await SharedFormLogic.toggleChildhoodStrokeSubgrid(formContext);
         setupServiceFieldVisibility(formContext);
     },
 
@@ -47,20 +44,11 @@ export const CaseMainServiceForm = {
 // Private helper functions
 // ============================================================================
 
-async function toggleContactStatusApp(formContext: Xrm.FormContext): Promise<void> {
-    const appUrl = await GetEnvironmentVariableValue("sa_CaseStatusAppURL");
-    const iframe = formContext.getControl<Xrm.Controls.IframeControl>("IFRAME_CaseContactStatusApp");
-
-    if (appUrl && iframe) {
-        iframe.setSrc(appUrl);
-    }
-}
-
 function setupServiceFieldVisibility(formContext: Xrm.FormContext): void {
-    formContext.getControl<Xrm.Controls.StandardControl>(CaseConstants.Fields.ServiceType)?.setVisible(true);
-    formContext.getControl<Xrm.Controls.StandardControl>(CaseConstants.Fields.SupportOption)?.setVisible(true);
-    formContext.getControl<Xrm.Controls.StandardControl>(CaseConstants.Fields.SalesRegion)?.setVisible(false);
-    formContext.getControl<Xrm.Controls.StandardControl>(CaseConstants.Fields.Commission)?.setVisible(false);
+    formContext.getControl<Xrm.Controls.StandardControl>(CaseEntity.Fields.CaseType)?.setVisible(true);
+    formContext.getControl<Xrm.Controls.StandardControl>(CaseEntity.Fields.Origin)?.setVisible(true);
+    formContext.getControl<Xrm.Controls.StandardControl>(CaseEntity.Fields.Priority)?.setVisible(false);
+    formContext.getControl<Xrm.Controls.StandardControl>(CaseEntity.Fields.Owner)?.setVisible(false);
 }
 
 // ============================================================================

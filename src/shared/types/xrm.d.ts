@@ -1,6 +1,6 @@
 // Global Window extension for MSDC namespace
 interface Window {
-    MSDC: {
+    MSDC?: {
         [key: string]: {
             [key: string]: unknown;
         };

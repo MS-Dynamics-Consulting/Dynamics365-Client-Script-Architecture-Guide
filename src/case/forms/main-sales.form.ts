@@ -1,7 +1,6 @@
-import { CaseConstants } from "../entities/case.constants";
+import { CaseEntity } from "../entities/case.entity";
 import { CaseRepository } from "../entities/case.repository";
 import { SharedFormLogic } from "./_shared.form";
-import { CaseValidation } from "../business/validation";
 
 /**
  * Case Main Form - Sales View
@@ -40,11 +39,6 @@ export const CaseMainSalesForm = {
 
         if (!SharedFormLogic.validateCommonFields(formContext)) {
             executionContext.getEventArgs().preventDefault();
-            return;
-        }
-
-        if (!CaseValidation.validateSalesFields(formContext)) {
-            executionContext.getEventArgs().preventDefault();
         }
     },
 
@@ -66,9 +60,9 @@ async function loadSalesMetrics(formContext: Xrm.FormContext): Promise<void> {
     const caseId = formContext.data.entity.getId();
     const repository = new CaseRepository();
     const caseData = await repository.retrieve(caseId, [
-        CaseConstants.Fields.SalesRegion,
-        CaseConstants.Fields.Commission,
-        CaseConstants.Fields.Revenue
+        CaseEntity.Fields.Subject,
+        CaseEntity.Fields.CaseType,
+        CaseEntity.Fields.Priority
     ]);
     if (caseData) {
         displaySalesMetrics(formContext, caseData);
@@ -76,15 +70,15 @@ async function loadSalesMetrics(formContext: Xrm.FormContext): Promise<void> {
 }
 
 function setupSalesFieldVisibility(formContext: Xrm.FormContext): void {
-    formContext.getControl<Xrm.Controls.StandardControl>(CaseConstants.Fields.SalesRegion)?.setVisible(true);
-    formContext.getControl<Xrm.Controls.StandardControl>(CaseConstants.Fields.Commission)?.setVisible(true);
-    formContext.getControl<Xrm.Controls.StandardControl>(CaseConstants.Fields.SalesManager)?.setVisible(true);
-    formContext.getControl<Xrm.Controls.StandardControl>(CaseConstants.Fields.ServiceType)?.setVisible(false);
+    formContext.getControl<Xrm.Controls.StandardControl>(CaseEntity.Fields.CaseType)?.setVisible(true);
+    formContext.getControl<Xrm.Controls.StandardControl>(CaseEntity.Fields.Priority)?.setVisible(true);
+    formContext.getControl<Xrm.Controls.StandardControl>(CaseEntity.Fields.Owner)?.setVisible(true);
+    formContext.getControl<Xrm.Controls.StandardControl>(CaseEntity.Fields.Origin)?.setVisible(false);
 }
 
 function registerSalesEventHandlers(formContext: Xrm.FormContext): void {
     formContext
-        .getAttribute(CaseConstants.Fields.Revenue)
+        .getAttribute(CaseEntity.Fields.CaseType)
         ?.addOnChange(() => calculateCommission(formContext));
 }
 
