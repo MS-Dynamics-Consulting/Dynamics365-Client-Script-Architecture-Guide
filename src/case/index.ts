@@ -7,8 +7,7 @@
 // Entity exports
 export { CaseEntity } from "./entities/case.entity";
 export { CaseRepository } from "./entities/case.repository";
-export { CaseConstants } from "./entities/case.constants";
-export type { CaseStatusCode, CaseStateCode, CaseFields } from "./entities/case.constants";
+export type { CaseStatusCode, CaseStateCode, CaseFields } from "./entities/case.entity";
 
 // Form handler exports
 export { CaseMainSalesForm } from "./forms/main-sales.form";

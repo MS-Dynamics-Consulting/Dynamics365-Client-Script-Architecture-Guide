@@ -1,4 +1,4 @@
-import { CaseConstants } from "../entities/case.constants";
+import { CaseEntity } from "../entities/case.entity";
 
 /**
  * Case validation business logic
@@ -6,18 +6,18 @@ import { CaseConstants } from "../entities/case.constants";
  */
 export const CaseValidation = {
     /**
-     * Validate service selection
+     * Validate subject selection
      */
-    validateService: (formContext: Xrm.FormContext): boolean => {
-        const service = formContext
-            .getAttribute(CaseConstants.Fields.Service)
+    validateSubject: (formContext: Xrm.FormContext): boolean => {
+        const subject = formContext
+            .getAttribute(CaseEntity.Fields.Subject)
             ?.getValue();
 
-        if (!service || (Array.isArray(service) && service.length === 0)) {
+        if (!subject || (Array.isArray(subject) && subject.length === 0)) {
             Xrm.Navigation.openAlertDialog({
-                text: "Please select a service before saving."
+                text: "Please select a subject before saving."
             });
-            formContext.getControl<Xrm.Controls.StandardControl>(CaseConstants.Fields.Service)?.setFocus();
+            formContext.getControl<Xrm.Controls.StandardControl>(CaseEntity.Fields.Subject)?.setFocus();
             return false;
         }
 
@@ -25,61 +25,18 @@ export const CaseValidation = {
     },
 
     /**
-     * Validate contact selection
+     * Validate customer selection
      */
-    validateContact: (formContext: Xrm.FormContext): boolean => {
-        const contact = formContext
-            .getAttribute(CaseConstants.Fields.Contact)
+    validateCustomer: (formContext: Xrm.FormContext): boolean => {
+        const customer = formContext
+            .getAttribute(CaseEntity.Fields.Customer)
             ?.getValue();
 
-        if (!contact || (Array.isArray(contact) && contact.length === 0)) {
+        if (!customer || (Array.isArray(customer) && customer.length === 0)) {
             Xrm.Navigation.openAlertDialog({
-                text: "Please select a contact before saving."
+                text: "Please select a customer before saving."
             });
-            formContext.getControl<Xrm.Controls.StandardControl>(CaseConstants.Fields.Contact)?.setFocus();
-            return false;
-        }
-
-        return true;
-    },
-
-    /**
-     * Validate sales-specific fields
-     */
-    validateSalesFields: (formContext: Xrm.FormContext): boolean => {
-        const revenue = formContext
-            .getAttribute<Xrm.Attributes.NumberAttribute>(CaseConstants.Fields.Revenue)
-            ?.getValue();
-
-        if (revenue !== null && revenue !== undefined && revenue < 0) {
-            Xrm.Navigation.openAlertDialog({
-                text: "Revenue cannot be negative."
-            });
-            return false;
-        }
-
-        return true;
-    },
-
-    /**
-     * Validate postcode format (UK)
-     */
-    validatePostcode: (formContext: Xrm.FormContext): boolean => {
-        const postcode = formContext
-            .getAttribute<Xrm.Attributes.StringAttribute>(CaseConstants.Fields.EnquirerPostcode)
-            ?.getValue();
-
-        if (!postcode) {
-            return true; // Optional field
-        }
-
-        const postcodeRegex = /^[A-Z]{1,2}\d{1,2}[A-Z]?\s?\d[A-Z]{2}$/i;
-
-        if (!postcodeRegex.test(postcode)) {
-            Xrm.Navigation.openAlertDialog({
-                text: "Invalid postcode format. Please enter a valid UK postcode."
-            });
-            formContext.getControl<Xrm.Controls.StandardControl>(CaseConstants.Fields.EnquirerPostcode)?.setFocus();
+            formContext.getControl<Xrm.Controls.StandardControl>(CaseEntity.Fields.Customer)?.setFocus();
             return false;
         }
 

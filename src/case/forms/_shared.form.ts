@@ -1,7 +1,8 @@
-import { CaseConstants } from "../entities/case.constants";
+import { CaseEntity } from "../entities/case.entity";
 import { CaseValidation } from "../business/validation";
 import { CaseWorkflow } from "../business/workflow";
-import { GetEnvironmentVariableValue } from "../../shared/utils/xrm.util";
+import { EnvironmentVariableRepository } from "../../shared/repositories/environment-variable.repository";
+import { EnvironmentVariables } from "../../shared/constants/environment-variables.constants";
 
 /**
  * Shared form logic used across multiple Case forms
@@ -23,8 +24,8 @@ export const SharedFormLogic = {
      * Common validation used by all forms
      */
     validateCommonFields: (formContext: Xrm.FormContext): boolean => {
-        return CaseValidation.validateService(formContext) &&
-               CaseValidation.validateContact(formContext);
+        return CaseValidation.validateSubject(formContext) &&
+               CaseValidation.validateCustomer(formContext);
     },
 
     /**
@@ -32,13 +33,6 @@ export const SharedFormLogic = {
      */
     updateFieldsForService: async (formContext: Xrm.FormContext): Promise<void> => {
         await CaseWorkflow.updateFieldsBasedOnService(formContext);
-    },
-
-    /**
-     * Toggle childhood stroke subgrid — used by service and manager forms
-     */
-    toggleChildhoodStrokeSubgrid: async (formContext: Xrm.FormContext): Promise<void> => {
-        await CaseWorkflow.toggleChildhoodStrokeSubgrid(formContext);
     }
 } as const;
 
@@ -48,16 +42,12 @@ export const SharedFormLogic = {
 
 function registerCommonEventHandlers(formContext: Xrm.FormContext): void {
     formContext
-        .getAttribute(CaseConstants.Fields.Service)
+        .getAttribute(CaseEntity.Fields.Subject)
         ?.addOnChange(() => SharedFormLogic.updateFieldsForService(formContext));
-
-    formContext
-        .getAttribute(CaseConstants.Fields.EnquirerPostcode)
-        ?.addOnChange(() => populatePostcodePrefix(formContext));
 }
 
 async function loadEnvironmentConfiguration(formContext: Xrm.FormContext): Promise<void> {
-    const config = await GetEnvironmentVariableValue("sa_CaseConfiguration");
+    const config = await new EnvironmentVariableRepository().getValue(EnvironmentVariables.Case.Configuration);
     if (config) {
         applyConfiguration(formContext, config);
     }
@@ -65,24 +55,12 @@ async function loadEnvironmentConfiguration(formContext: Xrm.FormContext): Promi
 
 function applyCommonFieldRules(formContext: Xrm.FormContext): void {
     formContext
-        .getAttribute(CaseConstants.Fields.Service)
+        .getAttribute(CaseEntity.Fields.Subject)
         ?.setRequiredLevel("required");
 
     formContext
-        .getAttribute(CaseConstants.Fields.Contact)
+        .getAttribute(CaseEntity.Fields.Customer)
         ?.setRequiredLevel("required");
-}
-
-function populatePostcodePrefix(formContext: Xrm.FormContext): void {
-    const postcode = formContext
-        .getAttribute<Xrm.Attributes.StringAttribute>(CaseConstants.Fields.EnquirerPostcode)
-        ?.getValue();
-
-    const postcodePrefix = postcode?.substring(0, 4);
-
-    formContext
-        .getAttribute(CaseConstants.Fields.EnquirerPostcodePrefix)
-        ?.setValue(postcodePrefix ?? null);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
