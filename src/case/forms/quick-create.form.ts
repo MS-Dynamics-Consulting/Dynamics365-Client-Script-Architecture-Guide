@@ -1,5 +1,6 @@
 import { CaseEntity } from "../entities/case.entity";
 import { SharedFormLogic } from "./_shared.form";
+import { registerHandler } from "../../shared/utils/register-handler.util";
 
 /**
  * Case Quick Create Form
@@ -56,7 +57,5 @@ function applyQuickCreateFieldRules(formContext: Xrm.FormContext): void {
 // ============================================================================
 
 if (typeof window !== "undefined") {
-    window.MSDC = window.MSDC || {};
-    window.MSDC.Case = window.MSDC.Case || {};
-    window.MSDC.Case.QuickCreateForm = CaseQuickCreateForm;
+    registerHandler("Case", "QuickCreateForm", CaseQuickCreateForm);
 }

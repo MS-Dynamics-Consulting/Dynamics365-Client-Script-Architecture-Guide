@@ -1,6 +1,7 @@
+import { SharedFormLogic } from "./_shared.form";
 import { CaseEntity } from "../entities/case.entity";
 import { CaseRepository } from "../entities/case.repository";
-import { SharedFormLogic } from "./_shared.form";
+import { registerHandler } from "../../shared/utils/register-handler.util";
 
 /**
  * Case Main Form - Sales View
@@ -100,7 +101,5 @@ function calculateCommission(_formContext: Xrm.FormContext): void {
 // ============================================================================
 
 if (typeof window !== "undefined") {
-    window.MSDC = window.MSDC || {};
-    window.MSDC.Case = window.MSDC.Case || {};
-    window.MSDC.Case.MainSalesForm = CaseMainSalesForm;
+    registerHandler("Case", "MainSalesForm", CaseMainSalesForm);
 }

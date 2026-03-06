@@ -1,37 +1,34 @@
-# Dynamics 365 Client Script Architecture Guide
+# Microsoft Dynamics 365 Client Script Architecture Guide
 
-A reference architecture for organizing Dynamics 365 client-side scripts (web resources) in TypeScript. Defines naming standards, folder structure, code patterns, and conventions for scalable, maintainable D365 projects.
+A reference architecture for TypeScript-based Dynamics 365 web resources. Defines folder structure, naming conventions, and code patterns for scalable, maintainable client scripts.
 
 ## Table of Contents
 
 - [Getting Started](#getting-started)
 - [Folder Structure](#folder-structure)
 - [Naming Conventions](#naming-conventions)
-- [Form Handler Patterns](#form-handler-patterns)
+- [Form Handlers](#form-handlers)
 - [Entity Module Blueprint](#entity-module-blueprint)
 - [Repository Pattern](#repository-pattern)
 - [Code Patterns](#code-patterns)
 - [Registration in Dynamics 365](#registration-in-dynamics-365)
 - [Best Practices](#best-practices)
+- [Architecture Recommendations](#architecture-recommendations)
 
 ---
 
 ## Getting Started
 
-Install dependencies and run the build:
-
 ```bash
 npm install
 npm run build        # production build
 npm run build:dev    # development build with source maps
+npm run clean        # delete dist/
 ```
 
-The compiled output is in `dist/`. Each deployable web resource compiles to its own `.js` file — one per form and ribbon. Use `npm run clean` to delete generated files.
+Output is in `dist/`. Each deployable web resource compiles to its own `.js` file.
 
-**Tech stack:**
-- TypeScript (strict mode, ES5 target)
-- Webpack 5 with multi-entry builds
-- `@types/xrm` for Dynamics 365 type definitions
+**Stack:** TypeScript (strict, ES5) · Webpack 5 multi-entry · `@types/xrm`
 
 ---
 
@@ -39,33 +36,34 @@ The compiled output is in `dist/`. Each deployable web resource compiles to its 
 
 ```
 src/
-├── shared/                        # Shared infrastructure & utilities
-│   ├── entities/                  # Shared base entities
+├── shared/                          # Shared infrastructure
+│   ├── constants/
+│   │   └── environment-variables.constants.ts   # D365 env var schema names
+│   ├── entities/
 │   │   └── base/
-│   │       └── entity.ts          # Abstract Entity base class
-│   ├── repositories/              # Generic data-access base class
-│   │   └── repository.ts          # Repository<T> + IRepository<T>
-│   ├── types/                     # TypeScript definitions
-│   │   └── xrm.d.ts               # Window.MSDC global extension
-│   └── utils/                     # Common utility functions
-│       └── xrm-context.util.ts    # Safe Xrm accessor (handles iframes)
+│   │       └── entity.ts            # Abstract Entity base class
+│   ├── repositories/
+│   │   ├── repository.ts            # Repository<T> base class
+│   │   └── environment-variable.repository.ts
+│   ├── types/
+│   │   └── xrm.d.ts                 # Window.MSDC global declaration
+│   └── utils/
+│       └── xrm-context.util.ts      # Safe Xrm accessor (iframe-aware)
 │
-├── <entity-name>/                 # Per-entity module (e.g., case/)
-│   ├── entities/                  # Entity-specific classes & constants
-│   ├── forms/                     # Form handlers by variant
-│   ├── ribbons/                   # Ribbon / command bar handlers
-│   ├── pages/                     # Custom pages / HTML resources
-│   ├── dialogs/                   # Dialog or quick-form handlers
-│   ├── business/                  # Business logic (validation, workflows)
-│   └── index.ts                   # Public API for the module
+└── <entity>/                        # One folder per D365 entity
+    ├── entities/
+    │   ├── <entity>.entity.ts       # Entity class + all static metadata
+    │   └── <entity>.repository.ts  # Typed repository subclass
+    ├── forms/
+    │   ├── _shared.form.ts          # Common form logic (not registered in D365)
+    │   └── <variant>.form.ts        # One file per form variant
+    ├── ribbons/
+    │   └── main.ribbon.ts
+    ├── business/
+    │   ├── validation.ts
+    │   └── workflow.ts
+    └── index.ts                     # Public API re-exports
 ```
-
-**Key points:**
-1. Keep shared code under `shared/` to avoid duplication.
-2. Each entity has a self-contained module; add new entities as new folders.
-3. Form handlers are granular and named by form type/variant.
-4. Non-form resources (ribbons, pages, dialogs) live alongside forms.
-5. `index.ts` files export the public API for easy imports.
 
 ---
 
@@ -73,158 +71,106 @@ src/
 
 ### Files
 
-Use `lowercase-with-dashes.type.ts` for all file names.
+Pattern: `<name>.<type>.ts` — lowercase with dashes.
 
-✅ **Good:**
-```
-case.entity.ts
-case.repository.ts
-case.constants.ts
-main-sales.form.ts
-quick-create.form.ts
-main.ribbon.ts
-status-app.page.ts
-update-category.dialog.ts
-_shared.form.ts
-```
+| Type | Examples |
+|------|---------|
+| Entity | `case.entity.ts`, `contact.entity.ts` |
+| Repository | `case.repository.ts` |
+| Form | `main-sales.form.ts`, `quick-create.form.ts`, `_shared.form.ts` |
+| Ribbon | `main.ribbon.ts`, `subgrid.ribbon.ts` |
+| Page | `status-app.page.ts` |
+| Dialog | `update-category.dialog.ts` |
+| Business | `validation.ts`, `workflow.ts` |
+| Constants | `environment-variables.constants.ts` |
+| Utility | `xrm-context.util.ts` |
 
-❌ **Avoid:**
-```
-Case.Form.ts
-Case.Commandbar.ts
-CaseMainForm.ts
-Sms.Form.SA.ts
-```
+❌ **Avoid:** `Case.Form.ts`, `CaseMainForm.ts`, `Case.Commandbar.ts`
 
-### Exports and Symbols
+### Exports
 
-Prefer **PascalCase object exports** for handlers. Group related functions into a single `as const` object.
+Use **PascalCase `as const` objects** — one per file, grouping all handlers.
 
 ```ts
-// ✅ Good
+// ✅
 export const CaseMainSalesForm = { onLoad, onSave, onServiceChange } as const;
-export const CaseMainRibbon = { openNewCase } as const;
 
-// ❌ Bad
-export function onLoad() { }
-export function onSave() { }
+// ❌
+export function onLoad() {}
+export function onSave() {}
 ```
 
-### Form Handler Naming
+### Form handler naming
 
 Pattern: `[Entity][FormType][Variant]Form`
 
 | Segment | Values |
 |---------|--------|
-| Entity | PascalCase entity name: `Case`, `Email`, `Contact` |
+| Entity | PascalCase: `Case`, `Contact`, `Email` |
 | FormType | `Main`, `QuickCreate`, `Mobile` |
 | Variant | Optional: `Sales`, `Service`, `Manager` |
 
-Examples: `CaseMainSalesForm`, `CaseQuickCreateForm`, `EmailMainForm`, `ContactMobileForm`
-
-### Other Resources
-
-| Resource type  | Naming pattern                                  |
-|----------------|-------------------------------------------------|
-| Ribbon         | `main.ribbon.ts`, `subgrid.ribbon.ts`           |
-| Page           | `<feature>.page.ts`                             |
-| Dialog         | `<action>.dialog.ts`                            |
-| Business logic | `validation.ts`, `workflow.ts`                  |
-| Entities       | `case.entity.ts`, `case.repository.ts` |
+Examples: `CaseMainSalesForm`, `CaseQuickCreateForm`, `ContactMainForm`
 
 ---
 
-## Form Handler Patterns
+## Form Handlers
 
-**Named form handlers** are the foundation of this architecture. Each form variant gets its own handler file.
+Each form variant has its own file. Logic shared across variants lives in `_shared.form.ts` and is **never registered directly in D365**.
 
-### Benefits
-- Explicit form-to-code mapping
-- Clean separation when multiple forms exist for the same entity
-- Easier to test and maintain
-- Good TypeScript support
-- Straightforward Dynamics 365 registration
-
-### Shared Logic
-
-Place logic common to multiple forms in `_shared.form.ts`. **Do not register this file directly in Dynamics 365.**
+### `_shared.form.ts`
 
 ```ts
-// src/case/forms/_shared.form.ts
 export const SharedFormLogic = {
     initializeForm: async (formContext: Xrm.FormContext): Promise<void> => {
-        // Common event handlers, env vars, field rules, subgrid setup
+        // common setup: field rules, event handlers, subgrids
     },
     validateCommonFields: (formContext: Xrm.FormContext): boolean => {
-        return CaseValidation.validateService(formContext) &&
-               CaseValidation.validateContact(formContext);
-    },
-    updateFieldsForService: async (formContext: Xrm.FormContext): Promise<void> => {
-        await CaseWorkflow.updateFieldsBasedOnService(formContext);
+        return CaseValidation.validateSubject(formContext) &&
+               CaseValidation.validateCustomer(formContext);
     }
 } as const;
 ```
 
-### Form Variant Example
+### Form variant
 
 ```ts
 // src/case/forms/main-sales.form.ts
 
 /**
  * Case Main Form - Sales View
- *
- * Form Details:
- * - Form Name: "Main - Sales"
- * - Form ID: {12345678-1234-1234-1234-123456789012}
- * - Target Audience: Sales team members
- * - Security Role: Sales Representative, Sales Manager
+ * Form ID: {aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa}
+ * Audience: Sales team · Roles: Sales Representative, Sales Manager
  */
 export const CaseMainSalesForm = {
     onLoad: async (executionContext: Xrm.Events.EventContext): Promise<void> => {
         const formContext = executionContext.getFormContext();
         await SharedFormLogic.initializeForm(formContext);
-        await loadSalesMetrics(formContext);
-        setupSalesFieldVisibility(formContext);
-        registerSalesEventHandlers(formContext);
+        setupFieldVisibility(formContext);
     },
 
-    onSave: async (executionContext: Xrm.Events.SaveEventContext): Promise<void> => {
+    onSave: (executionContext: Xrm.Events.SaveEventContext): void => {
         const formContext = executionContext.getFormContext();
-        if (!SharedFormLogic.validateCommonFields(formContext) ||
-            !CaseValidation.validateSalesFields(formContext)) {
+        if (!SharedFormLogic.validateCommonFields(formContext)) {
             executionContext.getEventArgs().preventDefault();
         }
     },
 
-    onServiceChange: async (executionContext: Xrm.Events.EventContext): Promise<void> => {
+    onSubjectChange: async (executionContext: Xrm.Events.EventContext): Promise<void> => {
         const formContext = executionContext.getFormContext();
-        await updateSalesCommission(formContext);
+        await CaseWorkflow.updateFieldsBasedOnService(formContext);
     }
 } as const;
 
-// ============================================================================
-// Private helpers (not exported)
-// ============================================================================
+// ── Private helpers ──────────────────────────────────────────────────────────
 
-async function loadSalesMetrics(formContext: Xrm.FormContext): Promise<void> {
-    const repository = new CaseRepository();
-    const caseData = await repository.retrieve(formContext.data.entity.getId(), [
-        CaseEntity.Fields.Subject,
-        CaseEntity.Fields.Priority,
-        CaseEntity.Fields.Owner
-    ]);
-    if (caseData) displaySalesMetrics(formContext, caseData);
-}
-
-function setupSalesFieldVisibility(formContext: Xrm.FormContext): void {
+function setupFieldVisibility(formContext: Xrm.FormContext): void {
     formContext.getControl<Xrm.Controls.StandardControl>(CaseEntity.Fields.Subject)?.setVisible(true);
     formContext.getControl<Xrm.Controls.StandardControl>(CaseEntity.Fields.Priority)?.setVisible(true);
     formContext.getControl<Xrm.Controls.StandardControl>(CaseEntity.Fields.CaseType)?.setVisible(false);
 }
 
-// ============================================================================
-// Global registration for Dynamics 365
-// ============================================================================
+// ── D365 global registration ─────────────────────────────────────────────────
 
 if (typeof window !== "undefined") {
     window.MSDC = window.MSDC || {};
@@ -237,51 +183,9 @@ if (typeof window !== "undefined") {
 
 ## Entity Module Blueprint
 
-Each entity module follows a consistent template:
+### Entity class
 
-```
-case/
-├── entities/
-│   ├── case.entity.ts          # Entity class with static LogicalName, Fields, StatusCode, FormIds
-│   └── case.repository.ts      # CaseRepository extends Repository<CaseEntity>
-├── forms/
-│   ├── main-sales.form.ts
-│   ├── main-service.form.ts
-│   ├── quick-create.form.ts
-│   └── _shared.form.ts         # Internal — not registered in D365
-├── ribbons/
-│   └── main.ribbon.ts
-├── pages/
-│   └── status-app.page.ts
-├── dialogs/
-│   └── update-category.dialog.ts
-├── business/
-│   ├── validation.ts
-│   └── workflow.ts
-└── index.ts                    # Public API re-exports
-```
-
-### `index.ts` structure
-
-```ts
-// case/index.ts
-export { CaseEntity } from "./entities/case.entity";
-export { CaseRepository } from "./entities/case.repository";
-export type { CaseStatusCode, CaseStateCode, CaseFields } from "./entities/case.entity";
-
-export { CaseMainSalesForm }   from "./forms/main-sales.form";
-export { CaseMainServiceForm } from "./forms/main-service.form";
-export { CaseQuickCreateForm } from "./forms/quick-create.form";
-// Note: _shared.form.ts is NOT exported (internal use only)
-
-export { CaseMainRibbon }  from "./ribbons/main.ribbon";
-export { CaseValidation }  from "./business/validation";
-export { CaseWorkflow }    from "./business/workflow";
-```
-
-### Entity static properties
-
-All entity metadata lives as `static` properties directly on the entity class — no separate constants file.
+All entity metadata lives as `static` properties on the entity class. No separate constants file.
 
 ```ts
 // case/entities/case.entity.ts
@@ -289,32 +193,25 @@ export class CaseEntity extends Entity {
     static LogicalName = "incident";
 
     static Fields = {
-        CaseId:     "incidentid",
-        Title:      "title",
-        CaseNumber: "ticketnumber",
-        StateCode:  "statecode",
-        StatusCode: "statuscode",
-        Customer:   "customerid",
-        Subject:    "subjectid",
-        CaseType:   "casetypecode",
-        Origin:     "caseorigincode",
-        Priority:   "prioritycode",
-        Owner:      "ownerid",
+        CaseId:      "incidentid",
+        Title:       "title",
+        CaseNumber:  "ticketnumber",
+        StateCode:   "statecode",
+        StatusCode:  "statuscode",
+        Customer:    "customerid",
+        Subject:     "subjectid",
+        CaseType:    "casetypecode",
+        Origin:      "caseorigincode",
+        Priority:    "prioritycode",
+        Owner:       "ownerid",
         Description: "description"
     } as const;
 
-    static StateCode = {
-        Active: 0,
-        Inactive: 1
-    } as const;
+    static StateCode  = { Active: 0, Inactive: 1 } as const;
 
     static StatusCode = {
-        Active: 1,
-        Draft: 100000000,
-        InProgress: 100000001,
-        PendingReview: 100000002,
-        Resolved: 2,
-        Cancelled: 100000003
+        Active: 1, Draft: 100000000, InProgress: 100000001,
+        PendingReview: 100000002, Resolved: 2, Cancelled: 100000003
     } as const;
 
     static FormIds = {
@@ -328,60 +225,6 @@ export type CaseStateCode  = typeof CaseEntity.StateCode[keyof typeof CaseEntity
 export type CaseFields     = typeof CaseEntity.Fields[keyof typeof CaseEntity.Fields];
 ```
 
----
-
-## Repository Pattern
-
-All data access extends the shared `Repository<T>` base class, which wraps `Xrm.WebApi` with typed CRUD operations.
-
-### Base entity
-
-```ts
-// src/shared/entities/base/entity.ts
-export abstract class Entity {
-    readonly id?: string;
-}
-```
-
-### Base repository
-
-```ts
-// src/shared/repositories/repository.ts
-
-export interface IRepository<T extends Entity> {
-    retrieve(id: string, select?: string[], expand?: string[]): Xrm.Async.PromiseLike<T>;
-    retrieveMultiple(query?: string): Xrm.Async.PromiseLike<T[]>;
-    create(entity: T): Xrm.Async.PromiseLike<string>;
-    update(id: string, entity: Partial<T>): Xrm.Async.PromiseLike<void>;
-    delete(id: string): Xrm.Async.PromiseLike<string>;
-}
-
-type EntityConstructor<T> = { new(...args: any[]): T; LogicalName: string; };
-
-export abstract class Repository<T extends Entity> implements IRepository<T> {
-    private readonly entityLogicalName: string;
-    private readonly xrm: typeof Xrm;
-
-    constructor(entityType: EntityConstructor<T>) {
-        this.entityLogicalName = entityType.LogicalName;
-        this.xrm = getXrmContext();
-    }
-    // retrieve, retrieveMultiple, create, update, delete...
-}
-```
-
-### Entity class
-
-The entity class declares `static logicalName` — this is how the repository discovers the API endpoint without any configuration in the repository subclass.
-
-```ts
-// case/entities/case.entity.ts
-export class CaseEntity extends Entity {
-    static LogicalName = "incident";
-    // typed properties...
-}
-```
-
 ### Repository subclass
 
 ```ts
@@ -391,12 +234,76 @@ export class CaseRepository extends Repository<CaseEntity> {
 }
 ```
 
-### `getXrmContext` utility
-
-Resolves the `Xrm` global safely in both top-level and iframe web resource contexts:
+### `index.ts`
 
 ```ts
-// src/shared/utils/xrm-context.util.ts
+// case/index.ts
+export { CaseEntity } from "./entities/case.entity";
+export { CaseRepository } from "./entities/case.repository";
+export type { CaseStatusCode, CaseStateCode, CaseFields } from "./entities/case.entity";
+
+export { CaseMainSalesForm }   from "./forms/main-sales.form";
+export { CaseMainServiceForm } from "./forms/main-service.form";
+export { CaseQuickCreateForm } from "./forms/quick-create.form";
+// _shared.form.ts is NOT exported — internal only
+
+export { CaseMainRibbon }  from "./ribbons/main.ribbon";
+export { CaseValidation }  from "./business/validation";
+export { CaseWorkflow }    from "./business/workflow";
+```
+
+---
+
+## Repository Pattern
+
+All data access extends `Repository<T>`, which wraps `Xrm.WebApi` with typed CRUD operations.
+
+### Base classes
+
+```ts
+// shared/entities/base/entity.ts
+export abstract class Entity {
+    readonly id?: string;
+}
+
+// shared/repositories/repository.ts
+type EntityConstructor<T extends Entity> = { new(...args: any[]): T; LogicalName: string; };
+
+export abstract class Repository<T extends Entity> {
+    constructor(entityType: EntityConstructor<T>) {
+        this.entityLogicalName = entityType.LogicalName;
+        this.xrm = getXrmContext();
+    }
+    // retrieve, retrieveMultiple, create, update, delete
+}
+```
+
+`LogicalName` on the entity class is all the repository needs to determine the Web API endpoint — no extra configuration in subclasses.
+
+### Environment variables
+
+D365 environment variables follow the same pattern through `EnvironmentVariableRepository`:
+
+```ts
+// shared/constants/environment-variables.constants.ts
+export const EnvironmentVariables = {
+    Case: {
+        Configuration: "msdc_CaseConfiguration",
+        StatusAppURL:  "msdc_CaseStatusAppURL"
+    }
+} as const;
+
+// Usage
+const url = await new EnvironmentVariableRepository().getValue(
+    EnvironmentVariables.Case.StatusAppURL
+);
+```
+
+### `xrm-context.util.ts`
+
+Resolves `Xrm` safely from both top-level pages and iframe web resources:
+
+```ts
 export function getXrmContext(): typeof Xrm {
     if (typeof Xrm !== "undefined") return Xrm;
     const parentXrm = (window?.parent as unknown as Record<string, unknown>)?.["Xrm"];
@@ -412,22 +319,12 @@ export function getXrmContext(): typeof Xrm {
 ### Validation
 
 ```ts
-// case/business/validation.ts
 export const CaseValidation = {
     validateSubject: (formContext: Xrm.FormContext): boolean => {
-        const subject = formContext.getAttribute(CaseEntity.Fields.Subject)?.getValue();
-        if (!subject || (subject as any[]).length === 0) {
+        const value = formContext.getAttribute(CaseEntity.Fields.Subject)?.getValue();
+        if (!value || (value as any[]).length === 0) {
             Xrm.Navigation.openAlertDialog({ text: "Please select a subject before saving." });
             formContext.getControl<Xrm.Controls.StandardControl>(CaseEntity.Fields.Subject)?.setFocus();
-            return false;
-        }
-        return true;
-    },
-    validateCustomer: (formContext: Xrm.FormContext): boolean => {
-        const customer = formContext.getAttribute(CaseEntity.Fields.Customer)?.getValue();
-        if (!customer || (customer as any[]).length === 0) {
-            Xrm.Navigation.openAlertDialog({ text: "Please select a customer before saving." });
-            formContext.getControl<Xrm.Controls.StandardControl>(CaseEntity.Fields.Customer)?.setFocus();
             return false;
         }
         return true;
@@ -440,93 +337,129 @@ export const CaseValidation = {
 ```ts
 // ✅ DO
 try {
-    await loadSalesMetrics(formContext);
+    await repository.retrieve(id, [CaseEntity.Fields.Subject]);
 } catch (error) {
-    console.error("Failed to load sales metrics:", error);
-    Xrm.Navigation.openAlertDialog({ text: "Unable to load sales metrics. Please refresh the form." });
+    console.error("Failed to load case:", error);
+    Xrm.Navigation.openAlertDialog({ text: "Unable to load case data. Please refresh." });
 }
 
-// ❌ DON'T
-await loadSalesMetrics(formContext).catch(() => {});   // silent failure
-await loadSalesMetrics(formContext).catch(e => alert(e.message));  // alert() in D365
+// ❌ DON'T — silent failure
+await repository.retrieve(id).catch(() => {});
 ```
 
-### TypeScript usage
+### TypeScript
 
 ```ts
-// ✅ DO
-const formContext: Xrm.FormContext = executionContext.getFormContext();
+// ✅ DO — typed attributes and controls
 const attr = formContext.getAttribute<Xrm.Attributes.LookupAttribute>(CaseEntity.Fields.Subject);
 formContext.getControl<Xrm.Controls.StandardControl>(CaseEntity.Fields.Subject)?.setVisible(true);
 
-// ❌ DON'T
-const formContext: any = executionContext.getFormContext();
-const attr = formContext.getAttribute("subjectid");
+// ❌ DON'T — magic strings and any casts
+const attr = formContext.getAttribute("subjectid") as any;
 ```
 
 ---
 
 ## Registration in Dynamics 365
 
-### Form event registration
+### Form events
 
-Open Form Editor → **Form Properties** → **Events** → **Form Libraries** → Add Library.
+Open **Form Editor → Form Properties → Events → Form Libraries** → Add your `.js` web resource.
 
-| Event | Function | Pass execution context |
-|-------|----------|------------------------|
-| OnLoad  | `MSDC.Case.MainSalesForm.onLoad`  | ✅ |
-| OnSave  | `MSDC.Case.MainSalesForm.onSave`  | ✅ |
-| OnChange (field) | `MSDC.Case.MainSalesForm.onServiceChange` | ✅ |
+| Event | Handler function | Pass execution context |
+|-------|-----------------|------------------------|
+| OnLoad | `MSDC.Case.MainSalesForm.onLoad` | ✅ |
+| OnSave | `MSDC.Case.MainSalesForm.onSave` | ✅ |
+| OnChange | `MSDC.Case.MainSalesForm.onSubjectChange` | ✅ |
 
-### Ribbon / CommandBar registration
+### Ribbon / Command Bar
 
-Use Ribbon Workbench or Command Designer:
+Use **Ribbon Workbench** or **Command Designer**:
 
-- **Library**: `dist/case/ribbons/main.ribbon.js`
-- **Function**: `MSDC.Case.MainRibbon.openNewCase`
-- **Pass primary control**: ✅ (if the command needs record context)
+- **Library:** upload `dist/case/ribbons/main.ribbon.js` as a web resource
+- **Function:** `MSDC.Case.MainRibbon.openNewCase`
+- **Pass execution context:** ✅ (for record context)
 
-### Build output → Library mapping
+### Build output → web resource mapping
 
-Each webpack entry produces one library file:
-
-| Source file | dist output | D365 Library |
-|-------------|-------------|--------------|
-| `case/forms/main-sales.form.ts` | `dist/case/forms/main-sales.form.js` | Upload as web resource |
-| `case/forms/main-service.form.ts` | `dist/case/forms/main-service.form.js` | Upload as web resource |
-| `case/forms/quick-create.form.ts` | `dist/case/forms/quick-create.form.js` | Upload as web resource |
-| `case/ribbons/main.ribbon.ts` | `dist/case/ribbons/main.ribbon.js` | Upload as web resource |
+| Entry point | Compiled output |
+|-------------|----------------|
+| `case/forms/main-sales.form.ts` | `dist/case/forms/main-sales.form.js` |
+| `case/forms/main-service.form.ts` | `dist/case/forms/main-service.form.js` |
+| `case/forms/quick-create.form.ts` | `dist/case/forms/quick-create.form.js` |
+| `case/ribbons/main.ribbon.ts` | `dist/case/ribbons/main.ribbon.js` |
 
 ---
 
 ## Best Practices
 
 ### Form handlers
-- **One handler per form variant.** Do not overload a single file with logic for multiple forms.
-- **Document form metadata** (form ID, target audience, security roles) in JSDoc at the top of every handler.
-- **Extract shared logic** to `_shared.form.ts`; never register it directly in Dynamics.
+- One file per form variant — never mix logic for multiple forms in one file.
+- Document the form ID, audience, and security roles in a JSDoc comment at the top.
+- Put logic shared across forms in `_shared.form.ts`; do not register it in D365.
 
-### Code organisation
-- **Favor constants over magic strings.** All field names, GUIDs, and option set values live as `static` properties on the entity class (`CaseEntity.Fields`, `CaseEntity.StatusCode`, etc.) — no separate constants file needed.
-- **Use `as const`** on all constants objects for full type narrowing.
-- **Keep side-effects minimal.** Use repositories for all data access; keep form handlers thin.
+### Entity design
+- All field names, status codes, and GUIDs are `static` properties on the entity class — use `CaseEntity.Fields.X`, not magic strings.
+- Use `as const` on every static object for full type narrowing.
+- Prefer standard D365 system fields over custom `msdc_*` fields where they exist.
+
+### Data access
+- Use repositories for all `Xrm.WebApi` calls — never call the API directly from form handlers.
+- Use `EnvironmentVariableRepository` for reading D365 environment variables; store schema names in `shared/constants/environment-variables.constants.ts`.
 
 ### TypeScript
-- **Enable strict mode.** All type errors must be resolved — do not cast to `any` to suppress them.
-- **Use `@types/xrm`** (the official npm package) instead of hand-written Xrm declarations.
-- **Use `Xrm.Controls.StandardControl`** when calling `setVisible()` or `setFocus()`.
+- Strict mode is required — resolve all type errors, never suppress with `any`.
+- Use `@types/xrm` (the official npm package) — do not hand-write Xrm declarations.
+- Use `Xrm.Controls.StandardControl` for `setVisible()` / `setFocus()` calls.
 
 ### Build
-- **One JS file per deployable web resource.** `webpack.config.js` uses explicit entry points; `splitChunks` is disabled.
-- **No `.d.ts` output.** Declaration files are unnecessary for D365 web resources (`declaration: true` is omitted from `tsconfig.json`).
-- **Source maps** are included in dev builds for in-browser debugging.
+- One JS output per deployable web resource — webpack entries are explicit, `splitChunks` is disabled.
+- No `.d.ts` output — declaration files are unnecessary for D365 web resources.
 
 ### Adding a new entity
 
-1. Create `src/<entity>/` following the blueprint above.
-2. Add entry points to `webpack.config.js`:
+1. Create `src/<entity>/` following the folder structure above.
+2. Add entry points in `webpack.config.js`:
    ```js
-   '<entity>/forms/main.form': './src/<entity>/forms/main.form.ts',
+   '<entity>/forms/main.form':     './src/<entity>/forms/main.form.ts',
    '<entity>/ribbons/main.ribbon': './src/<entity>/ribbons/main.ribbon.ts',
    ```
-3. Re-export from `src/<entity>/index.ts`.
+3. Create `src/<entity>/index.ts` with public re-exports.
+
+---
+
+## Architecture Notes
+
+### `EntitySetName` static property
+
+Each entity class exposes `static EntitySetName` alongside `LogicalName`. Use it for OData queries where the plural form is needed directly (e.g. `$batch` requests):
+
+```ts
+static EntitySetName = "incidents";
+```
+
+### Typed `retrieve` select parameter
+
+`Repository<T, TFields>` accepts a second generic parameter to constrain the `select` argument to known field names. `CaseRepository` is typed as `Repository<CaseEntity, CaseFields>`, so passing an unknown field name is a compile-time error:
+
+```ts
+// ✅ compiles
+repository.retrieve(id, [CaseEntity.Fields.Subject, CaseEntity.Fields.Priority]);
+
+// ❌ compile error — "unknownfield" is not assignable to CaseFields
+repository.retrieve(id, ["unknownfield"]);
+```
+
+### Centralised D365 registration
+
+All form and ribbon files use `registerHandler` from `shared/utils/register-handler.util.ts` instead of the 4-line `window.MSDC` block:
+
+```ts
+import { registerHandler } from "../../shared/utils/register-handler.util";
+
+registerHandler("Case", "MainSalesForm", CaseMainSalesForm);
+```
+
+### Shared `business/` logic
+
+Cross-entity business rules (e.g. audit helpers, permission checks) that are reused across entity modules belong in `src/shared/business/` rather than duplicated inside each entity module.

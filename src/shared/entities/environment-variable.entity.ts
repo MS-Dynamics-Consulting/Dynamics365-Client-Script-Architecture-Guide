@@ -2,6 +2,7 @@ import { Entity } from "./base/entity";
 
 export class EnvironmentVariableEntity extends Entity {
     static LogicalName = "environmentvariabledefinition";
+    static EntitySetName = "environmentvariabledefinitions";
 
     schemaname?: string;
     defaultvalue?: string | null;

@@ -2,6 +2,7 @@ import { Entity } from "../../shared/entities/base/entity";
 
 export class CaseEntity extends Entity {
     static LogicalName = "incident";
+    static EntitySetName = "incidents";
 
     static Fields = {
         // Primary fields
