@@ -1,7 +1,7 @@
 import { Repository } from "../../shared/repositories/repository";
-import { CaseEntity } from "./case.entity";
+import { CaseEntity, CaseFields } from "./case.entity";
 
-export class CaseRepository extends Repository<CaseEntity> {
+export class CaseRepository extends Repository<CaseEntity, CaseFields> {
     constructor() {
         super(CaseEntity);
     }
